@@ -22,7 +22,7 @@ Setting up an actor is relatively simple. However, a lot of features are
 currently missing to make it a true Actor model. You must include self as an
 argument for the actor, this allows you to access the actor's public methods.
 
-    actor = new Actor(function (self, message) {
+    var actor = new Actor(function (self, message) {
         return message;
     });
 
