@@ -49,7 +49,7 @@ function NativeActorDetail() {
      * @param {object} message - The message passed into the actor.
      */
     self.put = function (scope, message) {
-        setTimeout(function () { scope.on_message(message); }, 0);
+        setTimeout(function () { scope.on_message(scope, message); }, 0);
     };
 
     /**
@@ -59,7 +59,7 @@ function NativeActorDetail() {
      */
 
     self.call = function (scope, message) {
-        return scope.on_message(message);
+        return scope.on_message(scope, message);
     };
 
     /**
@@ -97,11 +97,8 @@ function ActorBase() {
     ActorBase.prototype.singletonInstance = self;
 
     // TODO Node actors with process.nextTick and setTimeout actors.
-    if (window.hasOwnProperty('Worker')) {
-        self.actorDetail = new WebWorkerActorDetail();
-    } else {
-        self.actorDetail = new NativeActorDetail();
-    }
+    // TODO Web worker actors.
+    self.actorDetail = new NativeActorDetail();
 
     /**
      * Passes put request to actor detail.
@@ -109,7 +106,7 @@ function ActorBase() {
      * @param {object} message - The message passed to the actor.
      */
     self.put = function (scope, message) {
-        self.actorDetails.put(scope, message);
+        self.actorDetail.put(scope, message);
     };
 
     /**
@@ -144,6 +141,7 @@ function Actor(fn) {
 
     // @constructor
     (function init() {
+        self.subscribers = [];
         if (typeof (fn) === 'function') {
             self.on_message = fn;
         } else {
@@ -199,3 +197,11 @@ function Actor(fn) {
         }
     };
 }
+
+/*
+Actor.prototype.call = function (message) {}
+Actor.prototype.put = function (message) {}
+Actor.prototype.broadcast = function (message) {}
+Actor.prototype.subscribe = function (actor) {}
+Actor.prototype.listen = function (actor) {}
+*/
