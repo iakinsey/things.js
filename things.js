@@ -1,5 +1,4 @@
 /*jslint browser: true*/
-//@js_externs Actor
 
 var Actor = (function () {
     'use strict';
