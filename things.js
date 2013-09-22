@@ -1,207 +1,198 @@
 /*jslint browser: true*/
+//@js_externs Actor
 
-// Web worker actor.
-// Single-threaded actor.
-
-
-var actorBase;
-
-
-/**
- * Singleton. TODO
- * @class WebWorkerActorDetail
- * @classdesc A set of methods accessed by the actor that utilize web workers.
- */
-function WebWorkerActorDetail() {
+var Actor = (function () {
     'use strict';
 
-    var self = this;
+    var actorBase,
+        actor_export = "Actor";
 
-    if (WebWorkerActorDetail.prototype.singletonInstance) {
-        return WebWorkerActorDetail.prototype.singletonInstance;
+    /**
+     * Singleton. TODO
+     * @class WebWorkerActorDetail
+     * @classdesc A set of methods accessed by the actor that utilize web
+     *            workers.
+     */
+    function WebWorkerActorDetail() {
+        var self = this;
+
+        if (WebWorkerActorDetail.prototype.singletonInstance) {
+            return WebWorkerActorDetail.prototype.singletonInstance;
+        }
+        WebWorkerActorDetail.prototype.singletonInstance = self;
+
+        self.put = function (scope, message) {};
+        self.call = function (scope, message) {};
+        self.broadcast = function (scope, message) {};
     }
-    WebWorkerActorDetail.prototype.singletonInstance = self;
-
-    self.put = function (scope, message) {};
-    self.call = function (scope, message) {};
-    self.broadcast = function (scope, message) {};
-}
 
 
-/**
- * Singleton
- * @class NativeActorDetail
- * @classdesc A set of methods accessed by the actor to handle async behaviour.
- */
-function NativeActorDetail() {
-    'use strict';
+    /**
+     * Singleton
+     * @class NativeActorDetail
+     * @classdesc A set of methods accessed by the actor to handle async
+     *            behaviour.
+     */
+    function NativeActorDetail() {
+        var self = this;
+        
+        if (NativeActorDetail.prototype.singletonInstance) {
+            return NativeActorDetail.prototype.singletonInstance;
+        }
+        NativeActorDetail.prototype.singletonInstance = self;
 
-    var self = this;
+        /**
+         * Posts message with setTimeout, calling the actor's on_message
+         * function.
+         * @param {Actor} scope - The Actor calling this method.
+         * @param {object} message - The message passed into the actor.
+         */
+        self.put = function (scope, message) {
+            setTimeout(function () { scope.on_message(scope, message); }, 0);
+        };
 
-    if (NativeActorDetail.prototype.singletonInstance) {
-        return NativeActorDetail.prototype.singletonInstance;
+        /**
+         * Synchronous calling of the actor's on_message function.
+         * @param {Actor} scope - The Actor calling this method.
+         * @param {object} message - The message passed into the actor.
+         */
+
+        self.call = function (scope, message) {
+            return scope.on_message(scope, message);
+        };
+
+        /**
+         * Broadcasts message to every actor subscribed to the actor passed in.
+         * @param {Actor} scope - The Actor calling this method.
+         * @param {object} message - The message passed to the actor.
+         */
+        self.broadcast = function (scope, message) {
+            var subscribers = scope.subscribers,
+                actor,
+                i;
+
+            for (i = scope.subscribers.length - 1; i >= 0; i -= 1) {
+                actor = subscribers[i];
+                self.put(actor, message);
+            }
+        };
+
     }
-    NativeActorDetail.prototype.singletonInstance = self;
+
 
     /**
-     * Posts message with setTimeout, calling the actor's on_message function.
-     * @param {Actor} scope - The Actor calling this method.
-     * @param {object} message - The message passed into the actor.
+     * Singleton
+     * @class ActorBase
+     * @classdesc Singleton used to determine the actor implementation.
      */
-    self.put = function (scope, message) {
-        setTimeout(function () { scope.on_message(scope, message); }, 0);
-    };
+    function ActorBase() {
+        var self = this;
 
-    /**
-     * Synchronous calling of the actor's on_message function.
-     * @param {Actor} scope - The Actor calling this method.
-     * @param {object} message - The message passed into the actor.
-     */
-
-    self.call = function (scope, message) {
-        return scope.on_message(scope, message);
-    };
-
-    /**
-     * Broadcasts message to every actor subscribed to the actor passed in.
-     * @param {Actor} scope - The Actor calling this method.
-     * @param {object} message - The message passed to the actor.
-     */
-    self.broadcast = function (scope, message) {
-        var subscribers = scope.subscribers,
-            actor,
-            i;
-
-        for (i = scope.subscribers.length - 1; i >= 0; i -= 1) {
-            actor = subscribers[i];
-            self.put(actor, message);
+        if (ActorBase.prototype.singletonInstance) {
+            return ActorBase.prototype.singletonInstance;
         }
-    };
+        ActorBase.prototype.singletonInstance = self;
 
-}
+        // TODO Node actors with process.nextTick and setTimeout actors.
+        // TODO Web worker actors.
+        self.actorDetail = new NativeActorDetail();
 
+        /**
+         * Passes put request to actor detail.
+         * @param {Actor} scope - The Actor calling this method.
+         * @param {object} message - The message passed to the actor.
+         */
+        self.put = function (scope, message) {
+            self.actorDetail.put(scope, message);
+        };
 
-/**
- * Singleton
- * @class ActorBase
- * @classdesc Singleton used to determine the actor implementation.
- */
-function ActorBase() {
-    'use strict';
+        /**
+         * Passes call request to actor detail.
+         * @param {Actor} scope - The Actor calling this method.
+         * @param {object} message - The message passed to the actor.
+         */
+        self.call = function (scope, message) {
+            self.actorDetail.call(scope, message);
+        };
 
-    var self = this;
-
-    if (ActorBase.prototype.singletonInstance) {
-        return ActorBase.prototype.singletonInstance;
+        /**
+         * Passes broadcast request to actor detail.
+         * @param {Actor} scope - The Actor calling this method.
+         * @param {object} message - The message being broadcast.
+         */
+        self.broadcast = function (scope, message) {
+            self.actorDetail.broadcast(scope, message);
+        };
     }
-    ActorBase.prototype.singletonInstance = self;
 
-    // TODO Node actors with process.nextTick and setTimeout actors.
-    // TODO Web worker actors.
-    self.actorDetail = new NativeActorDetail();
 
     /**
-     * Passes put request to actor detail.
-     * @param {Actor} scope - The Actor calling this method.
-     * @param {object} message - The message passed to the actor.
+     * @class
+     * @interface
+     * @classdesc An actor.
+     * @param {Function} fn - A function that will handle recieved messages.
      */
-    self.put = function (scope, message) {
-        self.actorDetail.put(scope, message);
-    };
+    function Actor(fn) {
+        var self = this;
 
-    /**
-     * Passes call request to actor detail.
-     * @param {Actor} scope - The Actor calling this method.
-     * @param {object} message - The message passed to the actor.
-     */
-    self.call = function (scope, message) {
-        self.actorDetail.call(scope, message);
-    };
+        // @constructor
+        (function init() {
+            self.subscribers = [];
+            if (typeof (fn) === 'function') {
+                self.on_message = fn;
+            } else {
+                self.on_message = function (message) {};
+            }
 
-    /**
-     * Passes broadcast request to actor detail.
-     * @param {Actor} scope - The Actor calling this method.
-     * @param {object} message - The message being broadcast.
-     */
-    self.broadcast = function (scope, message) {
-        self.actorDetail.broadcast(scope, message);
-    };
-}
+            if (!actorBase) {
+                actorBase = new ActorBase();
+            }
+        }());
 
+        /**
+         * Put a message in the actor's mailbox and forget about it.
+         * @param {object} message - Data to be passed.
+         */
+        self.put = function (message) {
+            actorBase.put(self, message);
+        };
 
-/**
- * @class
- * @classdesc An actor.
- * @param {Function} fn - A function that will handle recieved messages.
- */
-function Actor(fn) {
-    'use strict';
+        /**
+         * Actor call with expected return data.
+         * @param {object} message - Data
+         */
+        self.call = function (message) {
+            return actorBase.call(self, message);
+        };
 
-    var self = this;
+        /**
+         * Broadcast to all subscribers.
+         * @param {object} message - Data to be passed.
+         */
+        self.broadcast = function (message) {
+            return actorBase.broadcast(self, message);
+        };
 
-    // @constructor
-    (function init() {
-        self.subscribers = [];
-        if (typeof (fn) === 'function') {
-            self.on_message = fn;
-        } else {
-            self.on_message = function (message) {};
-        }
+        /**
+         * Subscribe an actor to this actor.
+         * @param {Actor} actor - An actor that will subscribe to this actor.
+         */
+        self.subscribe = function (actor) {
+            if (self.subscribers.indexOf(actor) === -1) {
+                self.subscribers.push(actor);
+            }
+        };
 
-        if (!actorBase) {
-            actorBase = new ActorBase();
-        }
-    }());
+        /**
+         * Subscribe this actor to another actor.
+         * @param {Actor} actor - An actor that this actor will subscribe to.
+         */
+        self.listen = function (actor) {
+            if (actor.subscribers.indexOf(actor) === -1) {
+                actor.subscribers.push(self);
+            }
+        };
+    }
 
-    /**
-     * Put a message in the actor's mailbox and forget about it.
-     * @param {object} message - Data to be passed.
-     */
-    self.put = function (message) {
-        actorBase.put(self, message);
-    };
-
-    /**
-     * Actor call with expected return data.
-     * @param {object} message - Data
-     */
-    self.call = function (message) {
-        return actorBase.call(self, message);
-    };
-
-    /**
-     * Broadcast to all subscribers.
-     * @param {object} message - Data to be passed.
-     */
-    self.broadcast = function (message) {
-        return actorBase.broadcast(self, message);
-    };
-
-    /**
-     * Subscribe an actor to this actor.
-     * @param {Actor} actor - An actor that will subscribe to this actor.
-     */
-    self.subscribe = function (actor) {
-        if (self.subscribers.indexOf(actor) === -1) {
-            self.subscribers.push(actor);
-        }
-    };
-
-    /**
-     * Subscribe this actor to another actor.
-     * @param {Actor} actor - An actor that this actor will subscribe to.
-     */
-    self.listen = function (actor) {
-        if (actor.subscribers.indexOf(actor) === -1) {
-            actor.subscribers.push(self);
-        }
-    };
-}
-
-/*
-Actor.prototype.call = function (message) {}
-Actor.prototype.put = function (message) {}
-Actor.prototype.broadcast = function (message) {}
-Actor.prototype.subscribe = function (actor) {}
-Actor.prototype.listen = function (actor) {}
-*/
+    return Actor;
+}());
